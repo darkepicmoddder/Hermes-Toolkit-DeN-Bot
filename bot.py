@@ -59,7 +59,7 @@ def sync_user(user):
         }
         users_col.insert_one(user_data)
     else:
-        users_col.update_one({"user_id": user.id}, {"$set": {"last_seen": datetime.now()}})
+        users_col.update_one({"user_id": user.id}, {"$set": {"last_seen": datetime.now(), "name": user.first_name}})
     return user_data
 
 def is_banned(user_id):
@@ -98,10 +98,10 @@ def start_cmd(message):
         f"<b>🔥 HERMES ENGINE PRO v96 ACTIVE</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"👤 <b>User:</b> {message.from_user.first_name}\n"
-        f"🚀 <b>Engine:</b> <code>Hermes Decompiler</code>\n"
+        f"🚀 <b>Engine:</b> <code>Decompiler/Compiler</code>\n"
         f"🛡 <b>Access:</b> <code>Premium Authorized</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"<i>Status: System Online and Ready.</i>"
+        f"<i>System Status: 24/7 Online ✅</i>"
     )
     
     if check_join(message.from_user.id):
@@ -134,28 +134,28 @@ def handle_query(call):
             "⚡ <code>/disasmdem</code> - Reply to index.android.bundle\n"
             "⚡ <code>/asmdem</code> - Reply to your zip folder\n"
             "⚡ <code>/start</code> - Refresh session\n\n"
-            "<i>Note: Keep file names standard for best results.</i>"
+            "<i>Note: File size affects processing time.</i>"
         )
         bot.edit_message_caption(help_text, call.message.chat.id, call.message.message_id, reply_markup=get_main_keyboard(user_id))
 
     elif call.data == "verify":
         if check_join(user_id):
-            bot.answer_callback_query(call.id, "✅ Access Granted!", show_alert=True)
+            bot.answer_callback_query(call.id, "✅ Verified!", show_alert=True)
             bot.delete_message(call.message.chat.id, call.message.message_id)
             start_cmd(call.message)
         else:
-            bot.answer_callback_query(call.id, "❌ Verification Failed! Please join the channel first.", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ Not joined yet!", show_alert=True)
 
     elif call.data == "admin_panel" and user_id == ADMIN_ID:
         total = users_col.count_documents({})
         adm_text = (
             f"<b>🛠 ADMIN DASHBOARD</b>\n\n"
             f"👥 Total Users: <code>{total}</code>\n"
-            f"🛰 Server: <code>Running v2.0</code>\n\n"
+            f"🛰 Status: <code>Running v96</code>\n\n"
             f"<b>Commands:</b>\n"
-            f"• <code>/stats</code> - User details\n"
-            f"• <code>/broadcast</code> - Send msg/image\n"
-            f"• <code>/ban [ID]</code> - Restrict user"
+            f"• <code>/stats</code> - Database Stats\n"
+            f"• <code>/broadcast</code> - Message all\n"
+            f"• <code>/ban [ID]</code> - Restrict"
         )
         bot.edit_message_caption(adm_text, call.message.chat.id, call.message.message_id, reply_markup=get_main_keyboard(user_id))
 
@@ -171,7 +171,7 @@ def process_engine(mode, message, status_msg):
         
         # Download Phase
         bot.send_chat_action(message.chat.id, 'typing')
-        bot.edit_message_text(f"📥 <b>Downloading File...</b>\n{get_progress_bar(20)}", message.chat.id, status_msg.message_id)
+        bot.edit_message_text(f"📥 <b>Downloading...</b>\n{get_progress_bar(20)}", message.chat.id, status_msg.message_id)
         
         file_info = bot.get_file(message.reply_to_message.document.file_id)
         downloaded = bot.download_file(file_info.file_path)
@@ -179,50 +179,104 @@ def process_engine(mode, message, status_msg):
         with open(input_file, 'wb') as f: f.write(downloaded)
 
         if mode == "disasm":
-            bot.edit_message_text(f"⚙️ <b>Engine: Decompiling...</b>\n{get_progress_bar(50)}", message.chat.id, status_msg.message_id)
+            bot.edit_message_text(f"⚙️ <b>Decompiling (v96)...</b>\n{get_progress_bar(50)}", message.chat.id, status_msg.message_id)
             out_path = os.path.join(work_dir, "out")
             hbctool.disasm(input_file, out_path)
             
-            bot.edit_message_text(f"📦 <b>Packing Result...</b>\n{get_progress_bar(80)}", message.chat.id, status_msg.message_id)
-            zip_name = f"Result_{message.from_user.id}.zip"
+            bot.edit_message_text(f"📦 <b>Zipping Files...</b>\n{get_progress_bar(85)}", message.chat.id, status_msg.message_id)
+            zip_name = f"Decompiled_{message.from_user.id}.zip"
             with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as z:
                 for r, _, fs in os.walk(out_path):
                     for f in fs: z.write(os.path.join(r, f), os.path.relpath(os.path.join(r, f), out_path))
             
             bot.send_chat_action(message.chat.id, 'upload_document')
             with open(zip_name, 'rb') as f:
-                bot.send_document(message.chat.id, f, caption="✅ <b>Decompiled successfully by Hermes Engine.</b>")
+                bot.send_document(message.chat.id, f, caption="✅ <b>Engine Success: Decompiled Bundle.</b>")
             os.remove(zip_name)
 
         else: # Assemble
-            bot.edit_message_text(f"⚙️ <b>Engine: Assembling...</b>\n{get_progress_bar(50)}", message.chat.id, status_msg.message_id)
+            bot.edit_message_text(f"⚙️ <b>Assembling Bundle...</b>\n{get_progress_bar(50)}", message.chat.id, status_msg.message_id)
             extract_dir = os.path.join(work_dir, "extract")
             with zipfile.ZipFile(input_file, 'r') as z: z.extractall(extract_dir)
             
             bundle_out = os.path.join(work_dir, "index.android.bundle")
             hbctool.asm(extract_dir, bundle_out)
             
-            bot.edit_message_text(f"📤 <b>Sending Bundle...</b>\n{get_progress_bar(90)}", message.chat.id, status_msg.message_id)
+            bot.edit_message_text(f"📤 <b>Uploading Result...</b>\n{get_progress_bar(90)}", message.chat.id, status_msg.message_id)
             bot.send_chat_action(message.chat.id, 'upload_document')
             with open(bundle_out, 'rb') as f:
-                bot.send_document(message.chat.id, f, caption="✅ <b>Compiled successfully by Hermes Engine.</b>")
+                bot.send_document(message.chat.id, f, caption="✅ <b>Engine Success: Compiled Bundle.</b>")
 
         bot.delete_message(message.chat.id, status_msg.message_id)
     except Exception as e:
-        bot.edit_message_text(f"❌ <b>Process Error:</b>\n<code>{str(e)}</code>", message.chat.id, status_msg.message_id)
+        bot.edit_message_text(f"❌ <b>Error:</b>\n<code>{str(e)}</code>", message.chat.id, status_msg.message_id)
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
 
 @bot.message_handler(commands=['disasmdem', 'asmdem'])
 def handle_engine_commands(message):
     if not check_join(message.from_user.id) or is_banned(message.from_user.id):
-        return bot.reply_to(message, "⚠️ Access Denied. Check Join Status.")
+        return
     
     if not message.reply_to_message or not message.reply_to_message.document:
-        return bot.reply_to(message, "❌ <b>Error:</b> Please reply to a File (bundle/zip).")
+        return bot.reply_to(message, "❌ Reply to a bundle or zip file!")
     
     mode = "disasm" if message.text == "/disasmdem" else "asm"
-    status = bot.send_message(message.chat.id, "🚀 <b>Initializing Hermes Engine...</b>")
+    status = bot.send_message(message.chat.id, "🚀 <b>Initializing...</b>")
+    threading.Thread(target=process_engine, args=(mode, message, status)).start()
+
+# --- ADMIN FUNCTIONS ---
+@bot.message_handler(commands=['broadcast'])
+def broadcast_handler(message):
+    if message.from_user.id != ADMIN_ID: return
+    
+    users = users_col.find({})
+    count = 0
+    
+    if message.reply_to_message:
+        for u in users:
+            try:
+                bot.copy_message(u['user_id'], message.chat.id, message.reply_to_message.message_id)
+                count += 1
+            except: pass
+    else:
+        msg_text = message.text.replace("/broadcast ", "")
+        if not msg_text or msg_text == "/broadcast":
+            return bot.reply_to(message, "Usage: <code>/broadcast [text]</code> or reply to a file.")
+        for u in users:
+            try:
+                bot.send_message(u['user_id'], f"📢 <b>ANNOUNCEMENT</b>\n\n{msg_text}")
+                count += 1
+            except: pass
+            
+    bot.send_message(ADMIN_ID, f"✅ Sent to {count} users.")
+
+@bot.message_handler(commands=['stats'])
+def stats_handler(message):
+    if message.from_user.id != ADMIN_ID: return
+    total = users_col.count_documents({})
+    recent_users = users_col.find().sort("_id", -1).limit(5)
+    
+    res = f"📊 <b>BOT STATS</b>\nTotal Users: {total}\n\n<b>Recent Joins:</b>\n"
+    for r in recent_users:
+        res += f"- {r['name']} (<code>{r['user_id']}</code>)\n"
+    bot.send_message(ADMIN_ID, res)
+
+@bot.message_handler(commands=['ban'])
+def ban_handler(message):
+    if message.from_user.id != ADMIN_ID: return
+    try:
+        tid = int(message.text.split()[1])
+        users_col.update_one({"user_id": tid}, {"$set": {"status": "banned"}})
+        bot.reply_to(message, f"🚫 User {tid} banned.")
+    except:
+        bot.reply_to(message, "Usage: /ban ID")
+
+# --- MAIN ---
+if __name__ == "__main__":
+    bootstrap_engine()
+    print("✨ Bot is Running...")
+    bot.infinity_polling(timeout=60, long_polling_timeout=30)send_message(message.chat.id, "🚀 <b>Initializing Hermes Engine...</b>")
     threading.Thread(target=process_engine, args=(mode, message, status)).start()
 
 # --- ADMIN FUNCTIONS ---
