@@ -1,0 +1,43 @@
+name: Hermes Bot Premium 24/7
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: "0 */4 * * *" # প্রতি ৪ ঘণ্টা পর পর রিস্টার্ট হবে
+  workflow_dispatch: # ম্যানুয়ালি রান করার অপশন
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: bot-session
+      cancel-in-progress: true # নতুন রান শুরু হলে পুরাতনটা অটো বন্ধ হবে (ভেরি ইম্পর্ট্যান্ট)
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagic1
+
+      - name: Install Python Libraries
+        run: |
+          pip install pyTelegramBotAPI pymongo dnspython
+          if [ -f "hbctool-0.1.5-96-py3-none-any.whl" ]; then
+            pip install hbctool-0.1.5-96-py3-none-any.whl
+          else
+            pip install hbctool
+          fi
+
+      - name: Run Bot
+        env:
+          PYTHONUNBUFFERED: 1
+        run: python bot.py
